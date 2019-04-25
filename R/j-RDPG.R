@@ -1,49 +1,130 @@
-# Author: Jesus Arroyo & Shangsi Wang
-#' Function to perform joint embedding of graphs into d dimensions.
+#' Function to perform multiple adjacency spectral embedding
 #' @param Adj_list a list of adjacency matrices with the same size n x n
-#' @param d number of joint embedding dimensions
-#' @param K number of embedding dimensions of each graph
+#' @param d number of joint embedding dimensions. If NULL, dimension is chosen automatically
+#' @param K maximum number of embedding dimensions of each graph
 #' @param par whether to run in parallel (TRUE/FALSE)
 #' @param numpar number of clusters for parallel implmentation
 #' @return A list containing the estimated subspace V and a list R with the individual parameters for each graph
-joint_latent_positions <- function(Adj_list, d, K=d, ASE = FALSE,
+joint_latent_positions <- function(Adj_list, d = NULL, K=d, ASE = FALSE,
                                    par = FALSE, numpar = 12) {
   if(par) {
     require(parallel)
     cl <- makeCluster(numpar)
     if(ASE) {
-      clusterExport(cl = cl, varlist = list("ase"))
+      clusterExport(cl = cl, varlist = list("ase", "getElbows"))
       latpos.list <- parLapply(cl = cl, Adj_list, ase, d = K)
     }else{
-      clusterExport(cl = cl, varlist = list("eig"))
-      latpos.list <- parLapply(cl = cl, Adj_list, eig, d = K)
+      clusterExport(cl = cl, varlist = list("eig_embedding", "getElbows"))
+      latpos.list <- parLapply(cl = cl, Adj_list, eig_embedding, d = K)
     }
     stopCluster(cl)
   } else {
     if(ASE) {
       latpos.list <- lapply(Adj_list, ase, d = K)
     }else{
-      latpos.list <- lapply(Adj_list, eig, d = K)
+      latpos.list <- lapply(Adj_list, eig_embedding, d = K)
     }
   }
   V_all  <- Reduce(cbind, latpos.list)
   require(rARPACK)
-  jointsvd <- svd(V_all, d)
-  R <- project_networks(Adj_list, jointsvd$u)
-  return(list(V = jointsvd$u, sigma = jointsvd$d, R = R))
+  jointsvd <- svd(V_all)
+  if(is.null(d)) {
+    hist(sapply(latpos.list, ncol))
+    d = getElbows(jointsvd$d, plot = TRUE)[1]
+  }
+  V = jointsvd$u[, 1:d, drop = FALSE]
+  R <- project_networks(Adj_list, V)
+  return(list(V = V, sigma = jointsvd$d, R = R))
 }
 
 
-ase <- function(A, d) {
-  require(rARPACK) 
-  eig <- eigs_sym(as.matrix(A), k = d)
-  X <- eig$vectors %*% diag(sqrt(abs(eig$values)), nrow = d)
-  return(X)
+
+#' Adjacency spectral embedding
+#' @param A adjacency matrix
+#' @param d number of joint embedding dimensions. If NULL, dimension is chosen automatically
+#' @param d.max maximum number of embedding dimensions to choose (if d is given, this number is ignored)
+#' @param diag.augment whether to do diagonal augmentation (TRUE/FALSE)
+#' @return A matrix with n rows and d columns containing the estimated latent positions
+ase <- function(A, d = NULL, d.max = ncol(A), diag.augment = TRUE) {
+  require(rARPACK)
+  # Diagonal augmentation
+  if(diag.augment & sum(abs(diag(A))) == 0) {
+    d = colSums(A)
+    n = ncol(A)
+    diag(A) = d / (n-1)
+  }
+  if(is.null(d)) {
+    eig <- eigs(as(A, "dgeMatrix"), d.max)
+    vals <- sort(x =  abs(eig$values), decreasing = TRUE)
+    #d = getElbow_GMM(vals)
+    d = getElbows(vals, plot = F)[1]
+    selected.eigs <- which(abs(eig$values) >= vals[d])
+    X <- eig$vectors[,selected.eigs] %*% diag(sqrt(abs(eig$values[selected.eigs])), nrow = d)
+    return(X)
+  } else {
+    eig <- eigs(as(A, "dgeMatrix"), k = d)
+    X <- eig$vectors %*% diag(sqrt(abs(eig$values)), nrow = d)
+    return(X) 
+  }
 }
 
-eig <- function(A, d) {
+#' Generalised adjacency spectral embedding
+#' @param A adjacency matrix
+#' @param d number of joint embedding dimensions. If NULL, dimension is chosen automatically
+#' @param d.max maximum number of embedding dimensions to choose (if d is given, this number is ignored)
+#' @param diag.augment whether to do diagonal augmentation (TRUE/FALSE)
+#' @return A list containing a matrix with n rows and d columns representing the estimated latent positions, and the estimated
+#' indefinite orthogonal projection matrix
+g.ase <- function(A, d = NULL, d.max = ncol(A)) {
   require(rARPACK) 
-  eig <- eigs_sym(as.matrix(A), k = d)$vectors
+  if(is.null(d)) {
+    eigv <- eigs(as(A, "dgeMatrix"), d.max)
+    vals <- sort(x =  abs(eigv$values), decreasing = TRUE)
+    #d = getElbow_GMM(vals)
+    d = getElbows(vals, plot = F)[1]
+    selected.eigs <- which(abs(eigv$values) >= vals[d])
+    X <- eigv$vectors[,selected.eigs] %*% diag(sqrt(abs(eigv$values[selected.eigs])), nrow = d)
+    D <- sign(eigv$values[selected.eigs])
+  } else{
+    eig <- eigs(as(A, "dgeMatrix"), k =  d)
+    X <- eig$vectors %*% diag(sqrt(abs(eig$values)), nrow = d)
+    D <- sign(eig$values) 
+  }
+  return(list(X=X, D=D))
+}
+
+#' Obtain expected adjacency matrix from generalised RDPG
+#' @param g_ase output of g.ase
+#' @return A matrix with expected adjacency 
+P_from_g.ase <- function(g_ase) {
+  g_ase$X %*% diag(g_ase$D) %*% t(g_ase$X)
+}
+
+#' Unscaled adjacency spectral embedding (top eigenvectors)
+#' @param A adjacency matrix
+#' @param d number of joint embedding dimensions. If NULL, dimension is chosen automatically
+#' @param d.max maximum number of embedding dimensions to choose (if d is given, this number is ignored)
+#' @param diag.augment whether to do diagonal augmentation (TRUE/FALSE)
+#' @return A list containing a matrix with n rows and d columns representing the estimated latent positions, and the estimated
+#' indefinite orthogonal projection matrix
+eig_embedding <- function(A, d = NULL, d.max = ncol(A), diag.augment = FALSE) {
+  require(rARPACK)
+  n <- ncol(A)
+  if(diag.augment & sum(abs(diag(A))) == 0) {
+    d = colSums(A)
+    n = ncol(A)
+    diag(A) = d / (n-1)
+  }
+  if(is.null(d)) {
+    eig <- eigs(as(A, "dgeMatrix"), d.max)
+    vals <- sort(x =  abs(eig$values), decreasing = TRUE)#[1:sqrt(n)]
+    #d = getElbow_GMM(vals)
+    d = getElbows(vals, plot = F)[1]
+    selected.eigs <- which(abs(eig$values) >= vals[d])
+    eig <- eig$vectors[,selected.eigs]
+  }else {
+    eig <- eigs(as(A, "dgeMatrix"), k = d)$vectors 
+  }
   return(eig)
 }
 
@@ -79,6 +160,12 @@ project_networks <- function(Adj_list, V) {
 dissimilarity.graphs <- function(Adj_list) {
   D <- sapply(Adj_list, function(A) 
     sapply(Adj_list, function(B) graph_distance(A, B)))
+}
+
+distance.Rs <- function(Rs) {
+  D <- sapply(Rs, function(A) 
+    sapply(Rs, function(B) norm(A-B, "F")))
+  return(D)
 }
 
 fit_joint_sbms <- function(Adj_list, community_memberships) {
