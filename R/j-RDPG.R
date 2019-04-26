@@ -49,9 +49,9 @@ ase <- function(A, d = NULL, d.max = ncol(A), diag.augment = TRUE) {
   require(rARPACK)
   # Diagonal augmentation
   if(diag.augment & sum(abs(diag(A))) == 0) {
-    d = colSums(A)
+    deg = colSums(A)
     n = ncol(A)
-    diag(A) = d / (n-1)
+    diag(A) = deg / (n-1)
   }
   if(is.null(d)) {
     eig <- eigs(as(A, "dgeMatrix"), d.max)
@@ -75,9 +75,14 @@ ase <- function(A, d = NULL, d.max = ncol(A), diag.augment = TRUE) {
 #' @param diag.augment whether to do diagonal augmentation (TRUE/FALSE)
 #' @return A list containing a matrix with n rows and d columns representing the estimated latent positions, and the estimated
 #' indefinite orthogonal projection matrix
-g.ase <- function(A, d = NULL, d.max = ncol(A)) {
+g.ase <- function(A, d = NULL, d.max = ncol(A), diag.augment = T) {
   require(rARPACK) 
   if(is.null(d)) {
+    if(diag.augment & sum(abs(diag(A))) == 0) {
+      deg = colSums(A)
+      n = ncol(A)
+      diag(A) = deg / (n-1)
+    }
     eigv <- eigs(as(A, "dgeMatrix"), d.max)
     vals <- sort(x =  abs(eigv$values), decreasing = TRUE)
     #d = getElbow_GMM(vals)
@@ -111,9 +116,9 @@ eig_embedding <- function(A, d = NULL, d.max = ncol(A), diag.augment = FALSE) {
   require(rARPACK)
   n <- ncol(A)
   if(diag.augment & sum(abs(diag(A))) == 0) {
-    d = colSums(A)
+    deg = colSums(A)
     n = ncol(A)
-    diag(A) = d / (n-1)
+    diag(A) = deg / (n-1)
   }
   if(is.null(d)) {
     eig <- eigs(as(A, "dgeMatrix"), d.max)
