@@ -1,7 +1,7 @@
 # Multiple Adjacency Spectral Embedding
 
 
-Methods to perform the *multiple adjacency spectral embedding* (MASE) method described in Arroyo et al. (2019).
+The *multiple adjacency spectral embedding* (MASE) performs a joint embedding of graphs based on a common invariant subspace assumption (see [Arroyo et al. (2019)](https://www.google.com)).
 
 # Overview
 
@@ -24,7 +24,7 @@ The COSIE model and the MASE algorithm can be deployed for a number of subsequen
 + Graph classification
 
 # R Code
-
+This repository contains R code that implements MASE and other auxiliary functions. To use MASE, download all the content from the [R/]() folder. The file [MASE-hyptest-example.R]() contains an example of MASE for two-sample graph hypothesis testing.
 
 # References
 
