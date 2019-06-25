@@ -16,7 +16,7 @@
 #' 
 #' @author Jes\'us Arroyo <jesus.arroyo@jhu.edu>
 mase <- function(Adj_list, d = NA, d_vec = NA,
-                 scaled.ASE = FALSE, diag.augmentation = TRUE,
+                 scaled.ASE = FALSE, diag.augment = TRUE,
                  par = FALSE, numpar = 12) {
   if(is.na(d_vec)) {
     d_vec = rep(d, length(Adj_list))
@@ -36,7 +36,7 @@ mase <- function(Adj_list, d = NA, d_vec = NA,
     }
     stopCluster(cl)
   } else {
-    if(ASE) {
+    if(scaled.ASE) {
       latpos.list <- lapply(1:length(Adj_list), function(i) 
         ase(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment))
     }else{
