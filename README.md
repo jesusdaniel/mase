@@ -1,7 +1,7 @@
 # Multiple Adjacency Spectral Embedding
 
 
-The *multiple adjacency spectral embedding* (MASE) performs a joint embedding of graphs based on a common invariant subspace assumption (see [Arroyo et al. (2019)](https://www.google.com)).
+The *multiple adjacency spectral embedding* (MASE) performs a joint embedding of graphs based on a common invariant subspace assumption (see [Arroyo et al. (2019)](https://arxiv.org/abs/1906.10026)).
 
 # Overview
 
@@ -29,4 +29,4 @@ This repository contains R code that implements MASE and other auxiliary functio
 # References
 
 Arroyo, J., Athreya, A., Cape, J., Chen, G., Priebe, C.E., Vogelstein, J.T., "Inference for multiple heterogeneous networks with a common invariant subspace", 
-[![arXiv shield](https://img.shields.io/badge/arXiv-1906.????-red.svg?style=flat)](https://arxiv.org/abs/1906.?????)
+[![arXiv shield](https://img.shields.io/badge/arXiv-1906.10026-red.svg?style=flat)](https://arxiv.org/abs/1906.10026)
