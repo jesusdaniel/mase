@@ -6,8 +6,8 @@ library(multiRDPG)
 library(Matrix)
 source("R/mase.R")
 
-source("parametric-bootstrap.R")
-source("sample_graphs.R")
+source("R/parametric-bootstrap.R")
+source("R/sample_graphs.R")
 
 
 # read getElbows function from github
