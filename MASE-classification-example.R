@@ -75,7 +75,7 @@ plot_adjmatrix(Adj_list[[4]])
 # MASE
 mase.embed <- mase(Adj_list, d = 2)
 # 2D plot of latent positions
-plot_eig(jrdpg$V)
+plot_eig(mase.embed$V)
 
 
 # JEG - random initialization
