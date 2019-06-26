@@ -6,6 +6,7 @@
 #' @param d_vec vector of individual embedding dimensions for each graph. If NA, it is the same as d.
 #' @param scaled.ASE logical. When true, the scaled adjacency spectral embedding is used.
 #' @param diag.augment logical. When true, the diagonal augmentation method for ASE is performed.
+#' @param elbow number of elbow selected in Zhu & Ghodsi method. Default is 1.
 #' @param par whether to run in parallel (TRUE/FALSE)
 #' @param numpar number of clusters for parallel implmentation
 #' 
@@ -16,7 +17,7 @@
 #' 
 #' @author Jes\'us Arroyo <jesus.arroyo@jhu.edu>
 mase <- function(Adj_list, d = NA, d_vec = NA,
-                 scaled.ASE = FALSE, diag.augment = TRUE,
+                 scaled.ASE = FALSE, diag.augment = TRUE, elbow = 1,
                  par = FALSE, numpar = 12) {
   if(is.na(d_vec)) {
     d_vec = rep(d, length(Adj_list))
@@ -26,11 +27,15 @@ mase <- function(Adj_list, d = NA, d_vec = NA,
     require(parallel)
     cl <- makeCluster(numpar)
     if(scaled.ASE) {
-      clusterExport(cl = cl, varlist = list("ase", "getElbows"))
+      clusterExport(cl = cl, varlist = list("ase", "getElbows", 
+                                            "Adj_list", "d_vec",
+                                            "diag.augment", "elbow"))
       latpos.list <- parLapply(cl = cl, 1:length(Adj_list), function(i) 
-        ase(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment))
+        ase(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow))
     }else{
-      clusterExport(cl = cl, varlist = list("eig_embedding", "getElbows"))
+      clusterExport(cl = cl, varlist = list("eig_embedding", "getElbows",
+                                            "Adj_list", "d_vec",
+                                            "diag.augment", "elbow"))
       latpos.list <- parLapply(cl = cl, 1:length(Adj_list), function(i) 
         eig_embedding(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment))
     }
@@ -38,10 +43,10 @@ mase <- function(Adj_list, d = NA, d_vec = NA,
   } else {
     if(scaled.ASE) {
       latpos.list <- lapply(1:length(Adj_list), function(i) 
-        ase(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment))
+        ase(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow))
     }else{
       latpos.list <- lapply(1:length(Adj_list), function(i) 
-        eig_embedding(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment))
+        eig_embedding(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow))
     }
   }
   V_all  <- Reduce(cbind, latpos.list)
@@ -49,7 +54,7 @@ mase <- function(Adj_list, d = NA, d_vec = NA,
   jointsvd <- svd(V_all)
   if(is.na(d)) {
     #hist(sapply(latpos.list, ncol))
-    d = getElbows(jointsvd$d, plot = TRUE)[1]
+    d = getElbows(jointsvd$d, plot = TRUE)[elbow]
   }
   V = jointsvd$u[, 1:d, drop = FALSE]
   R <- project_networks(Adj_list, V)
@@ -65,12 +70,12 @@ mase <- function(Adj_list, d = NA, d_vec = NA,
 #' @param d number of joint embedding dimensions. If NA, dimension is chosen automatically
 #' @param d.max maximum number of embedding dimensions to try when d is not provided. Default is sqrt(ncol(A)).
 #' @param diag.augment whether to do diagonal augmentation (TRUE/FALSE)
-#' 
+#' @param elbow number of elbow selected in Zhu & Ghodsi method. Default is 1.
 #' @return A matrix with n rows and d columns containing the estimated latent positions
 #' 
 #' @author Jes\'us Arroyo <jesus.arroyo@jhu.edu>
 #' 
-ase <- function(A, d = NA, d.max = sqrt(ncol(A)), diag.augment = TRUE) {
+ase <- function(A, d = NA, d.max = sqrt(ncol(A)), diag.augment = TRUE, elbow = 1) {
   require(rARPACK)
   # Diagonal augmentation
   if(diag.augment & sum(abs(diag(A))) == 0) {
@@ -81,7 +86,7 @@ ase <- function(A, d = NA, d.max = sqrt(ncol(A)), diag.augment = TRUE) {
   if(is.na(d)) {
     eig <- eigs(as(A, "dgeMatrix"), d.max)
     vals <- sort(x =  abs(eig$values), decreasing = TRUE)
-    d = getElbows(vals, plot = F)[1]
+    d = getElbows(vals, plot = F)[elbow]
     selected.eigs <- which(abs(eig$values) >= vals[d])
     V <- eig$vectors[,selected.eigs]
     D <- diag(sqrt(abs(eig$values[selected.eigs])), nrow = d)
@@ -100,6 +105,7 @@ ase <- function(A, d = NA, d.max = sqrt(ncol(A)), diag.augment = TRUE) {
 #' @param d number of joint embedding dimensions. If NULL, dimension is chosen automatically
 #' @param d.max maximum number of embedding dimensions to choose (if d is given, this number is ignored)
 #' @param diag.augment whether to do diagonal augmentation (TRUE/FALSE)
+#' @param elbow number of elbow selected in Zhu & Ghodsi method. Default is 1.
 #' 
 #' @return A list containing a matrix with n rows and d columns representing the estimated latent positions, and the estimated
 #' indefinite orthogonal projection matrix
@@ -108,7 +114,7 @@ ase <- function(A, d = NA, d.max = sqrt(ncol(A)), diag.augment = TRUE) {
 #' the generalised random dot product graph." arXiv preprint arXiv:1709.05506 (2017).
 #' 
 #' @author Jes\'us Arroyo <jesus.arroyo@jhu.edu>
-g.ase <- function(A, d = NA, d.max = ncol(A), diag.augment = T) {
+g.ase <- function(A, d = NA, d.max = ncol(A), diag.augment = T, elbow = 1) {
   require(rARPACK) 
   if(is.na(d)) {
     if(diag.augment & sum(abs(diag(A))) == 0) {
@@ -119,7 +125,7 @@ g.ase <- function(A, d = NA, d.max = ncol(A), diag.augment = T) {
     eigv <- eigs(as(A, "dgeMatrix"), d.max)
     vals <- sort(x =  abs(eigv$values), decreasing = TRUE)
     #d = getElbow_GMM(vals)
-    d = getElbows(vals, plot = F)[1]
+    d = getElbows(vals, plot = F)[elbow]
     selected.eigs <- which(abs(eigv$values) >= vals[d])
     X <- eigv$vectors[,selected.eigs] %*% diag(sqrt(abs(eigv$values[selected.eigs])), nrow = d)
     D <- sign(eigv$values[selected.eigs])
@@ -147,12 +153,13 @@ P_from_g.ase <- function(g_ase) {
 #' @param d number of joint embedding dimensions. If NULL, dimension is chosen automatically
 #' @param d.max maximum number of embedding dimensions to choose (if d is given, this number is ignored)
 #' @param diag.augment whether to do diagonal augmentation (TRUE/FALSE)
+#' @param elbow number of elbow selected in Zhu & Ghodsi method. Default is 1.
 #' 
 #' @return A list containing a matrix with n rows and d columns representing the estimated latent positions, and the estimated
 #' indefinite orthogonal projection matrix
 #' 
 #' @author Jes\'us Arroyo <jesus.arroyo@jhu.edu>
-eig_embedding <- function(A, d = NA, d.max = ncol(A), diag.augment = FALSE) {
+eig_embedding <- function(A, d = NA, d.max = ncol(A), diag.augment = FALSE, elbow = 1) {
   require(rARPACK)
   n <- ncol(A)
   if(diag.augment & sum(abs(diag(A))) == 0) {
@@ -163,8 +170,7 @@ eig_embedding <- function(A, d = NA, d.max = ncol(A), diag.augment = FALSE) {
   if(is.na(d)) {
     eig <- eigs(as(A, "dgeMatrix"), d.max)
     vals <- sort(x =  abs(eig$values), decreasing = TRUE)#[1:sqrt(n)]
-    #d = getElbow_GMM(vals)
-    d = getElbows(vals, plot = F)[1]
+    d = getElbows(vals, plot = F)[elbow]
     selected.eigs <- which(abs(eig$values) >= vals[d])
     eig <- eig$vectors[,selected.eigs]
   }else {

@@ -21,7 +21,7 @@
 #' 
 #' @author Jes\'us Arroyo <jesus.arroyo@jhu.edu>
 mase.test.statistic.distr <- function(V, R, P0 = NULL, B = 1000,
-                             d = NA, d_vec = NA, scaled.ASE = FALSE, diag.augment = TRUE) {
+                                      d = NA, d_vec = NA, scaled.ASE = FALSE, diag.augment = TRUE) {
   n = nrow(V)
   d = ncol(V)
   
@@ -84,7 +84,6 @@ test_equality_COSIE <- function(V, R1, R2, B = 1000, P0 = NULL,
   return(list(p.value = pval, null.dist.1 = null_1, null.dist.2 = null_2, 
               test.statistic = test))
 }
-
 
 
 
