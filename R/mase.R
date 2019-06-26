@@ -5,7 +5,7 @@
 #' @param d number of joint embedding dimensions. If NA, dimension is chosen automatically
 #' @param d_vec vector of individual embedding dimensions for each graph. If NA, it is the same as d.
 #' @param scaled.ASE logical. When true, the scaled adjacency spectral embedding is used.
-#' @param diag.augmentation logial. When true, the diagonal augmentation method for ASE is performed.
+#' @param diag.augment logial. When true, the diagonal augmentation method for ASE is performed.
 #' @param par whether to run in parallel (TRUE/FALSE)
 #' @param numpar number of clusters for parallel implmentation
 #' 
