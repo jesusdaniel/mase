@@ -17,7 +17,7 @@
 #' 
 #' @author Jes\'us Arroyo <jesus.arroyo@jhu.edu>
 mase <- function(Adj_list, d = NA, d_vec = NA,
-                 scaled.ASE = FALSE, diag.augment = TRUE, elbow = 1,
+                 scaled.ASE = TRUE, diag.augment = TRUE, elbow = 1,
                  par = FALSE, numpar = 12) {
   if(is.na(d_vec)) {
     d_vec = rep(d, length(Adj_list))
@@ -26,27 +26,24 @@ mase <- function(Adj_list, d = NA, d_vec = NA,
   if(par) {
     require(parallel)
     cl <- makeCluster(numpar)
+    clusterEvalQ(cl, source("R/loadAll.R"))
+    clusterExport(cl = cl, varlist = list("ase", "eig_embedding", "getElbows", "Adj_list",
+                                          "elbow", "d_vec", "diag.augment"), envir = environment())
     if(scaled.ASE) {
-      clusterExport(cl = cl, varlist = list("ase", "getElbows", 
-                                            "Adj_list", "d_vec",
-                                            "diag.augment", "elbow"))
       latpos.list <- parLapply(cl = cl, 1:length(Adj_list), function(i) 
-        ase(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow))
+        ase(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow = elbow))
     }else{
-      clusterExport(cl = cl, varlist = list("eig_embedding", "getElbows",
-                                            "Adj_list", "d_vec",
-                                            "diag.augment", "elbow"))
       latpos.list <- parLapply(cl = cl, 1:length(Adj_list), function(i) 
-        eig_embedding(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment))
+        eig_embedding(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow = elbow))
     }
     stopCluster(cl)
   } else {
     if(scaled.ASE) {
       latpos.list <- lapply(1:length(Adj_list), function(i) 
-        ase(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow))
+        ase(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow = elbow))
     }else{
       latpos.list <- lapply(1:length(Adj_list), function(i) 
-        eig_embedding(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow))
+        eig_embedding(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow = elbow))
     }
   }
   V_all  <- Reduce(cbind, latpos.list)
@@ -88,7 +85,7 @@ ase <- function(A, d = NA, d.max = sqrt(ncol(A)), diag.augment = TRUE, elbow = 1
     vals <- sort(x =  abs(eig$values), decreasing = TRUE)
     d = getElbows(vals, plot = F)[elbow]
     selected.eigs <- which(abs(eig$values) >= vals[d])
-    V <- eig$vectors[,selected.eigs]
+    V <- eig$vectors[,selected.eigs, drop = F]
     D <- diag(sqrt(abs(eig$values[selected.eigs])), nrow = d)
     X <- V %*% D
     return(X)
@@ -127,7 +124,7 @@ g.ase <- function(A, d = NA, d.max = ncol(A), diag.augment = T, elbow = 1) {
     #d = getElbow_GMM(vals)
     d = getElbows(vals, plot = F)[elbow]
     selected.eigs <- which(abs(eigv$values) >= vals[d])
-    X <- eigv$vectors[,selected.eigs] %*% diag(sqrt(abs(eigv$values[selected.eigs])), nrow = d)
+    X <- eigv$vectors[,selected.eigs, drop = F] %*% diag(sqrt(abs(eigv$values[selected.eigs])), nrow = d)
     D <- sign(eigv$values[selected.eigs])
   } else{
     eig <- eigs(as(A, "dgeMatrix"), k =  d)
@@ -172,7 +169,7 @@ eig_embedding <- function(A, d = NA, d.max = ncol(A), diag.augment = FALSE, elbo
     vals <- sort(x =  abs(eig$values), decreasing = TRUE)#[1:sqrt(n)]
     d = getElbows(vals, plot = F)[elbow]
     selected.eigs <- which(abs(eig$values) >= vals[d])
-    eig <- eig$vectors[,selected.eigs]
+    eig <- eig$vectors[,selected.eigs, drop = FALSE]
   }else {
     eig <- eigs(as(A, "dgeMatrix"), k = d)$vectors 
   }
