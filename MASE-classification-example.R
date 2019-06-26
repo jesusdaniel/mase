@@ -140,4 +140,3 @@ Xtrain.jeg <- jeg$lambda
 Xtest.jeg <- multiembed_test(A = Adj_list_test, h = jeg$h)
 sum(knn(train = Xtrain.jeg, test = Xtest.jeg, cl = labels, k = 1) == labels) /  length(labels)
 
-
