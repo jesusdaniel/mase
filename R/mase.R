@@ -47,7 +47,7 @@ mase <- function(Adj_list, d = NA, d_vec = NA,
   V_all  <- Reduce(cbind, latpos.list)
   require(rARPACK)
   jointsvd <- svd(V_all)
-  if(is.null(d)) {
+  if(is.na(d)) {
     #hist(sapply(latpos.list, ncol))
     d = getElbows(jointsvd$d, plot = TRUE)[1]
   }
@@ -78,7 +78,7 @@ ase <- function(A, d = NA, d.max = sqrt(ncol(A)), diag.augment = TRUE) {
     n = ncol(A)
     diag(A) = deg / (n-1)
   }
-  if(is.null(d)) {
+  if(is.na(d)) {
     eig <- eigs(as(A, "dgeMatrix"), d.max)
     vals <- sort(x =  abs(eig$values), decreasing = TRUE)
     d = getElbows(vals, plot = F)[1]
@@ -108,9 +108,9 @@ ase <- function(A, d = NA, d.max = sqrt(ncol(A)), diag.augment = TRUE) {
 #' the generalised random dot product graph." arXiv preprint arXiv:1709.05506 (2017).
 #' 
 #' @author Jes\'us Arroyo <jesus.arroyo@jhu.edu>
-g.ase <- function(A, d = NULL, d.max = ncol(A), diag.augment = T) {
+g.ase <- function(A, d = NA, d.max = ncol(A), diag.augment = T) {
   require(rARPACK) 
-  if(is.null(d)) {
+  if(is.na(d)) {
     if(diag.augment & sum(abs(diag(A))) == 0) {
       deg = colSums(A)
       n = ncol(A)
@@ -152,7 +152,7 @@ P_from_g.ase <- function(g_ase) {
 #' indefinite orthogonal projection matrix
 #' 
 #' @author Jes\'us Arroyo <jesus.arroyo@jhu.edu>
-eig_embedding <- function(A, d = NULL, d.max = ncol(A), diag.augment = FALSE) {
+eig_embedding <- function(A, d = NA, d.max = ncol(A), diag.augment = FALSE) {
   require(rARPACK)
   n <- ncol(A)
   if(diag.augment & sum(abs(diag(A))) == 0) {
@@ -160,7 +160,7 @@ eig_embedding <- function(A, d = NULL, d.max = ncol(A), diag.augment = FALSE) {
     n = ncol(A)
     diag(A) = deg / (n-1)
   }
-  if(is.null(d)) {
+  if(is.na(d)) {
     eig <- eigs(as(A, "dgeMatrix"), d.max)
     vals <- sort(x =  abs(eig$values), decreasing = TRUE)#[1:sqrt(n)]
     #d = getElbow_GMM(vals)
@@ -203,7 +203,7 @@ cluster_positions <- function(V, K) {
 plot.3d <- function(V, col = NULL, title = NULL) {
   require(plotly)
   if(is.null(col)) {
-    pl <- plot_ly(x = V[, 1], y = V[,2], z = V[,3], main = "hi")
+    pl <- plot_ly(x = V[, 1], y = V[,2], z = V[,3])
   }else {
     pl <- plot_ly(x = V[, 1], y = V[,2], z = V[,3], color = col)  
   }
