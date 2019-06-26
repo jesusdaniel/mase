@@ -60,7 +60,7 @@ p.values <- function(test.statistics, null.distribution) {
 #' @param d number of joint embedding dimensions. If NULL, dimension is chosen automatically
 #' @param d_vec vector of individual embedding dimensions for each graph. If NULL, it is the same as d.
 #' @param scaled.ASE logical. When true, the scaled adjacency spectral embedding is used.
-#' @param diag.augmentation logial. When true, the diagonal augmentation method for ASE is performed.
+#' @param diag.augment logical. When true, the diagonal augmentation method for ASE is performed.
 #' @param par whether to run in parallel (TRUE/FALSE)
 #' @param numpar number of clusters for parallel implmentation
 #' 
