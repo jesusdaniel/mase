@@ -6,7 +6,9 @@
 #' @param d_vec vector of individual embedding dimensions for each graph. If NA, it is the same as d.
 #' @param scaled.ASE logical. When true, the scaled adjacency spectral embedding is used.
 #' @param diag.augment logical. When true, the diagonal augmentation method for ASE is performed.
-#' @param elbow number of elbow selected in Zhu & Ghodsi method. Default is 1.
+#' @param elbow_graph number of elbow selected in Zhu & Ghodsi method for the scree plot of each individual graph eigenvalues.
+#' @param elbow_mase number of elbow selected in Zhu & Ghodsi method for the scree plot of the singular values of the concatenated spectral embeddings of MASE.
+#' @param show.scree.results when TRUE, the histogram of the estimated d for each graph, and the scree plot of the singular values of  the graph is shown if d is not specified.
 #' @param par whether to run in parallel (TRUE/FALSE)
 #' @param numpar number of clusters for parallel implmentation
 #' 
@@ -17,7 +19,9 @@
 #' 
 #' @author Jes\'us Arroyo <jesus.arroyo@jhu.edu>
 mase <- function(Adj_list, d = NA, d_vec = NA,
-                 scaled.ASE = TRUE, diag.augment = TRUE, elbow = 1,
+                 scaled.ASE = TRUE, diag.augment = TRUE, 
+                 elbow_graph = 1, elbow_mase = 2,
+                 show.scree.results = FALSE,
                  par = FALSE, numpar = 12) {
   if(is.na(d_vec)) {
     d_vec = rep(d, length(Adj_list))
@@ -28,30 +32,32 @@ mase <- function(Adj_list, d = NA, d_vec = NA,
     cl <- makeCluster(numpar)
     clusterEvalQ(cl, source("R/loadAll.R"))
     clusterExport(cl = cl, varlist = list("ase", "eig_embedding", "getElbows", "Adj_list",
-                                          "elbow", "d_vec", "diag.augment"), envir = environment())
+                                          "elbow_graph", "d_vec", "diag.augment"), envir = environment())
     if(scaled.ASE) {
       latpos.list <- parLapply(cl = cl, 1:length(Adj_list), function(i) 
-        ase(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow = elbow))
+        ase(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow = elbow_graph))
     }else{
       latpos.list <- parLapply(cl = cl, 1:length(Adj_list), function(i) 
-        eig_embedding(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow = elbow))
+        eig_embedding(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow = elbow_graph))
     }
     stopCluster(cl)
   } else {
     if(scaled.ASE) {
       latpos.list <- lapply(1:length(Adj_list), function(i) 
-        ase(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow = elbow))
+        ase(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow = elbow_graph))
     }else{
       latpos.list <- lapply(1:length(Adj_list), function(i) 
-        eig_embedding(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow = elbow))
+        eig_embedding(Adj_list[[i]], d = d_vec[i], diag.augment = diag.augment, elbow = elbow_graph))
     }
   }
   V_all  <- Reduce(cbind, latpos.list)
   require(rARPACK)
   jointsvd <- svd(V_all)
   if(is.na(d)) {
-    print(hist(sapply(latpos.list, ncol), main = "Estimated d for each graph"))
-    d = getElbows(jointsvd$d, plot = TRUE)[elbow]
+    if(show.scree.results) {
+      hist(sapply(latpos.list, ncol), main = "Estimated d for each graph")
+    }
+    d = getElbows(jointsvd$d, plot = show.scree.results)[elbow_mase]
   }
   V = jointsvd$u[, 1:d, drop = FALSE]
   R <- project_networks(Adj_list, V)
