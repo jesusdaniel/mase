@@ -50,7 +50,7 @@ mase <- function(Adj_list, d = NA, d_vec = NA,
   require(rARPACK)
   jointsvd <- svd(V_all)
   if(is.na(d)) {
-    #hist(sapply(latpos.list, ncol))
+    print(hist(sapply(latpos.list, ncol), main = "Estimated d for each graph"))
     d = getElbows(jointsvd$d, plot = TRUE)[elbow]
   }
   V = jointsvd$u[, 1:d, drop = FALSE]
